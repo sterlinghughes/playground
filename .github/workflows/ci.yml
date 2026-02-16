@@ -30,3 +30,47 @@ jobs:
       - name: Test hello_service
         run: |
           docker compose run --rm dev bash -c "cd hello_service && cargo test"
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.25.0/kind-linux-amd64 &&
+          chmod +x ./kind &&
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&
+          chmod +x kubectl &&
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Create kind cluster
+        run: kind create cluster --name playground
+
+      - name: Build hello-service image
+        run: docker build -t hello-service:latest hello_service/
+
+      - name: Load image into kind
+        run: kind load docker-image hello-service:latest --name playground
+
+      - name: Deploy to kind
+        run: kubectl apply -f k8s/
+
+      - name: Wait for pod ready
+        run: kubectl wait --for=condition=ready pod -l app=hello-service --timeout=120s
+
+      - name: Run integration test
+        run: |
+          kubectl port-forward --address 0.0.0.0 svc/hello-service 50051:50051 &
+          sleep 5 &&
+          docker compose build &&
+          docker compose run --rm dev bash -c "cd hello_service && cargo run --release --bin hello-client -- --addr http://172.17.0.1:50051 --name CI"
+
+      - name: Cleanup
+        if: always()
+        run: kind delete cluster --name playground
