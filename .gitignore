@@ -7,4 +7,5 @@
 .idea/
 .vscode/
 target/
-k8s/_deploy/
+opt/opt/k8s/_deploy/
+.direnv/
