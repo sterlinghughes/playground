@@ -59,7 +59,7 @@ jobs:
         run: kind load docker-image hello-service:latest --name playground
 
       - name: Deploy to kind
-        run: kubectl apply -f k8s/
+        run: kubectl apply -k k8s/base
 
       - name: Wait for pod ready
         run: kubectl wait --for=condition=ready pod -l app=hello-service --timeout=120s

@@ -37,7 +37,9 @@ make lint    # Run cargo clippy inside the container
 
 ## Kubernetes (kind)
 
-Local Kubernetes development using [kind](https://kind.sigs.k8s.io/). Generic targets accept these variables:
+Local Kubernetes development using [kind](https://kind.sigs.k8s.io/). Manifests live in `k8s/base/` and are managed with [Kustomize](https://kustomize.io/). The `kind_deploy` target generates a Kustomize overlay from `SERVICE_PORT`, so the K8s config always matches the Makefile variables:
+
+
 
 | Variable | Default | Description |
 |----------|---------|-------------|

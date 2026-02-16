@@ -86,11 +86,39 @@ kind_build:
 kind_load:
 	kind load docker-image $(SERVICE_NAME):latest --name $(CLUSTER_NAME)
 
+define KUSTOMIZE_OVERLAY
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  - target:
+      kind: Deployment
+      name: $(SERVICE_NAME)
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "$(SERVICE_PORT)"
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: $(SERVICE_PORT)
+  - target:
+      kind: Service
+      name: $(SERVICE_NAME)
+    patch: |-
+      - op: replace
+        path: /spec/ports/0/port
+        value: $(SERVICE_PORT)
+endef
+export KUSTOMIZE_OVERLAY
+
 kind_deploy: kind_build kind_load
-	kubectl apply -f k8s/
+	@mkdir -p k8s/_deploy
+	@echo "$$KUSTOMIZE_OVERLAY" > k8s/_deploy/kustomization.yaml
+	kubectl apply -k k8s/_deploy
 
 kind_undeploy:
-	kubectl delete -f k8s/
+	kubectl delete -k k8s/base
 
 kind_port_forward:
 	kubectl port-forward svc/$(SERVICE_NAME) $(SERVICE_PORT):$(SERVICE_PORT)
