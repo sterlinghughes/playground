@@ -1,0 +1,29 @@
+FROM quay.io/centos/centos:stream10 AS builder
+
+RUN dnf install -y gcc gcc-c++ make \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --default-toolchain stable --profile minimal
+
+WORKDIR /build/tools
+COPY tools/ .
+
+RUN cargo build --release \
+    && mkdir /tools-bin \
+    && find target/release -maxdepth 1 -type f -executable -exec cp {} /tools-bin/ \;
+
+FROM quay.io/centos/centos:stream10
+
+RUN dnf install -y kernel-headers kernel-devel \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+COPY --from=builder /tools-bin/ /usr/local/tools/
+
+ENV PATH="/usr/local/tools:${PATH}"

@@ -21,7 +21,7 @@ COPY hello-client/ hello-client/
 
 RUN cargo build --release
 
-FROM quay.io/centos/centos:stream10
+FROM playground-base:latest
 
 COPY --from=builder /build/target/release/hello-server /usr/local/bin/
 COPY --from=builder /build/target/release/hello-client /usr/local/bin/
