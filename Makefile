@@ -1,4 +1,5 @@
 .PHONY: test lint ci \
+       base_image \
        hello_world \
        hello_service hello_service_test hello_service_lint hello_service_server hello_service_client \
        hello_service_deploy hello_service_undeploy hello_service_status hello_service_port_forward \
@@ -17,6 +18,9 @@ test:
 
 lint:
 	cargo clippy --workspace -- -D warnings
+
+base_image:
+	docker build -t playground-base:latest -f Dockerfile.base .
 
 hello_world:
 	cargo run --release -p hello_world
@@ -64,10 +68,11 @@ kind_create:
 kind_delete:
 	kind delete cluster --name $(CLUSTER_NAME)
 
-kind_build:
+kind_build: base_image
 	docker build -t $(SERVICE_NAME):latest $(SERVICE_DIR)/
 
 kind_load:
+	kind load docker-image playground-base:latest --name $(CLUSTER_NAME)
 	kind load docker-image $(SERVICE_NAME):latest --name $(CLUSTER_NAME)
 
 define KUSTOMIZE_OVERLAY

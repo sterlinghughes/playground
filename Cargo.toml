@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "hello_world",
+    "tools/*",
     "hello_service/hello-server",
     "hello_service/hello-client",
 ]
