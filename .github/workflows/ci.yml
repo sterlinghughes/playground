@@ -15,10 +15,18 @@ jobs:
         run: |
           docker compose run --rm dev bash -c "echo 'Health check: OK' && uname -a"
 
-      - name: Lint
+      - name: Lint hello_world
         run: |
           docker compose run --rm dev bash -c "cd hello_world && cargo clippy -- -D warnings"
 
-      - name: Test
+      - name: Test hello_world
         run: |
           docker compose run --rm dev bash -c "cd hello_world && cargo test"
+
+      - name: Lint hello_service
+        run: |
+          docker compose run --rm dev bash -c "cd hello_service && cargo clippy -- -D warnings"
+
+      - name: Test hello_service
+        run: |
+          docker compose run --rm dev bash -c "cd hello_service && cargo test"
