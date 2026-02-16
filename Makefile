@@ -1,4 +1,4 @@
-.PHONY: build shell up down test lint ci \
+.PHONY: test lint ci \
        hello_world \
        hello_service hello_service_test hello_service_lint hello_service_server hello_service_client \
        hello_service_deploy hello_service_undeploy hello_service_status hello_service_port_forward \
@@ -10,43 +10,31 @@ CLUSTER_NAME    ?= playground
 SERVICE_NAME    ?= hello-service
 SERVICE_DIR     ?= hello_service
 SERVICE_PORT    ?= 50051
-SERVICE_TEST_CMD ?= cargo run --release --bin hello-client -- --addr http://host.docker.internal:$(SERVICE_PORT) --name Integration
-
-build:
-	docker compose build
-
-shell: up
-	docker compose exec dev bash
-
-up:
-	docker compose up -d
-
-down:
-	docker compose down
+SERVICE_TEST_CMD ?= cargo run --release --bin hello-client -- --addr http://127.0.0.1:$(SERVICE_PORT) --name Integration
 
 test:
-	docker compose run --rm dev bash -c "cd hello_world && cargo test"
+	cargo test --workspace
 
 lint:
-	docker compose run --rm dev bash -c "cd hello_world && cargo clippy -- -D warnings"
+	cargo clippy --workspace -- -D warnings
 
 hello_world:
-	docker compose run --rm dev bash -c "cd hello_world && cargo run --release"
+	cargo run --release -p hello_world
 
 hello_service:
-	docker compose run --rm dev bash -c "cd hello_service && cargo build --release"
+	cargo build --release -p hello-server -p hello-client
 
 hello_service_test:
-	docker compose run --rm dev bash -c "cd hello_service && cargo test"
+	cargo test -p hello-server -p hello-client
 
 hello_service_lint:
-	docker compose run --rm dev bash -c "cd hello_service && cargo clippy -- -D warnings"
+	cargo clippy -p hello-server -p hello-client -- -D warnings
 
 hello_service_server:
-	docker compose run --rm -p $(SERVICE_PORT):$(SERVICE_PORT) dev bash -c "cd hello_service && PORT=$(SERVICE_PORT) cargo run --release --bin hello-server"
+	PORT=$(SERVICE_PORT) cargo run --release --bin hello-server
 
 hello_service_client:
-	docker compose run --rm dev bash -c "cd hello_service && cargo run --release --bin hello-client -- $(ARGS)"
+	cargo run --release --bin hello-client -- $(ARGS)
 
 hello_service_deploy:
 	$(MAKE) kind_deploy SERVICE_NAME=hello-service SERVICE_DIR=hello_service SERVICE_PORT=50051
@@ -62,15 +50,11 @@ hello_service_port_forward:
 
 hello_service_integration_test:
 	$(MAKE) kind_integration_test SERVICE_NAME=hello-service SERVICE_DIR=hello_service SERVICE_PORT=50051 \
-		SERVICE_TEST_CMD="cargo run --release --bin hello-client -- --addr http://host.docker.internal:50051 --name Integration"
+		SERVICE_TEST_CMD="cargo run --release --bin hello-client -- --addr http://127.0.0.1:50051 --name Integration"
 
 ci:
-	docker compose build
-	docker compose run --rm dev bash -c "echo 'Health check: OK' && uname -a"
-	docker compose run --rm dev bash -c "cd hello_world && cargo clippy -- -D warnings"
-	docker compose run --rm dev bash -c "cd hello_world && cargo test"
-	docker compose run --rm dev bash -c "cd hello_service && cargo clippy -- -D warnings"
-	docker compose run --rm dev bash -c "cd hello_service && cargo test"
+	cargo clippy --workspace -- -D warnings
+	cargo test --workspace
 
 # kind (local Kubernetes) targets
 
@@ -113,12 +97,12 @@ endef
 export KUSTOMIZE_OVERLAY
 
 kind_deploy: kind_build kind_load
-	@mkdir -p k8s/_deploy
-	@echo "$$KUSTOMIZE_OVERLAY" > k8s/_deploy/kustomization.yaml
-	kubectl apply -k k8s/_deploy
+	@mkdir -p opt/k8s/_deploy
+	@echo "$$KUSTOMIZE_OVERLAY" > opt/k8s/_deploy/kustomization.yaml
+	kubectl apply -k opt/k8s/_deploy
 
 kind_undeploy:
-	kubectl delete -k k8s/base
+	kubectl delete -k opt/k8s/base
 
 kind_port_forward:
 	kubectl port-forward svc/$(SERVICE_NAME) $(SERVICE_PORT):$(SERVICE_PORT)
@@ -132,6 +116,6 @@ kind_integration_test: kind_deploy
 	kubectl wait --for=condition=ready pod -l app=$(SERVICE_NAME) --timeout=120s
 	kubectl port-forward --address 0.0.0.0 svc/$(SERVICE_NAME) $(SERVICE_PORT):$(SERVICE_PORT) &
 	@sleep 3
-	docker compose run --rm dev bash -c "cd $(SERVICE_DIR) && $(SERVICE_TEST_CMD)" || { kill %1 2>/dev/null; exit 1; }
+	cd $(SERVICE_DIR) && $(SERVICE_TEST_CMD) || { kill %1 2>/dev/null; exit 1; }
 	@kill %1 2>/dev/null || true
 	@echo "Integration test passed!"

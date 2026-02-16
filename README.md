@@ -1,45 +1,72 @@
 # playground
 
-General-purpose project with Docker-based local Linux development.
+Rust projects with a Nix dev environment, CentOS Stream 10 production containers, and local Kubernetes via kind.
+
+## Project Layout
+
+```
+hello_world/          Rust "hello world" with unit tests
+hello_service/        Rust gRPC service (tonic/prost)
+opt/
+  k8s/base/           Kubernetes manifests (Kustomize)
+  nix/vm/             NixOS VM config (kernel 6.19 + Docker)
+  docker-compose.yml  Backing services (placeholder)
+flake.nix             Nix dev shell
+```
 
 ## Projects
 
 ### hello_world
 
-A Rust "hello world" app with unit tests. Located in `hello_world/`.
+A simple Rust binary with unit tests.
 
 ### hello_service
 
-A Rust gRPC service using tonic/prost with a `Greeter.SayHello` RPC. Located in `hello_service/`.
+A gRPC service with a `Greeter.SayHello` RPC.
 
-- **hello-server** — gRPC server on port 50051
-- **hello-client** — CLI client with `--addr` and `--name` flags
+- **hello-server** — listens on port 50051
+- **hello-client** — CLI with `--addr` and `--name` flags
 - **Proto** — `hello_service/proto/hello.proto`
 
 ```bash
-make hello_service          # Build hello_service
-make hello_service_test     # Run unit tests
-make hello_service_lint     # Run clippy
-make hello_service_server   # Start the gRPC server (port 50051)
-make hello_service_client ARGS="--name Alice"  # Run the client
+make hello_service          # Build
+make hello_service_test     # Unit tests
+make hello_service_lint     # Clippy
+make hello_service_server   # Start the server
+make hello_service_client ARGS="--name Alice"
 ```
 
 ## Local Development
 
+### Prerequisites
+
+- [Nix](https://nixos.org/download/) with flakes enabled
+- [direnv](https://direnv.net/) (optional, for automatic shell activation)
+
+### Dev Shell
+
 ```bash
-make build   # Build the Docker image
-make shell   # Open an interactive shell in the container
-make up      # Start the container in the background
-make down    # Stop the container
-make test    # Run cargo test inside the container
-make lint    # Run cargo clippy inside the container
+nix develop      # Enter the dev shell (rustc, cargo, clippy, protobuf, kubectl, kind)
+direnv allow     # Or auto-activate with direnv
+```
+
+```bash
+make test        # hello_world tests
+make lint        # hello_world clippy
+make ci          # All lints and tests
+```
+
+### Production Image
+
+CentOS Stream 10 runtime base:
+
+```bash
+docker build -t hello-service:latest hello_service/
 ```
 
 ## Kubernetes (kind)
 
-Local Kubernetes development using [kind](https://kind.sigs.k8s.io/). Manifests live in `k8s/base/` and are managed with [Kustomize](https://kustomize.io/). The `kind_deploy` target generates a Kustomize overlay from `SERVICE_PORT`, so the K8s config always matches the Makefile variables:
-
-
+Manifests in `opt/k8s/base/`, managed with [Kustomize](https://kustomize.io/). The `kind_deploy` target generates a Kustomize overlay from `SERVICE_PORT`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -47,48 +74,57 @@ Local Kubernetes development using [kind](https://kind.sigs.k8s.io/). Manifests 
 | `SERVICE_NAME` | `hello-service` | Docker image and K8s resource name |
 | `SERVICE_DIR` | `hello_service` | Directory containing the service Dockerfile |
 | `SERVICE_PORT` | `50051` | Port for the service |
-| `SERVICE_TEST_CMD` | *(hello-client)* | Command to run for integration test |
 
 ```bash
-make kind_create             # Create a kind cluster
-make kind_deploy             # Build image, load into kind, apply manifests
-make kind_status             # Show pod and service status
-make kind_port_forward       # Forward localhost port to the service
-make kind_integration_test   # Deploy and run client against the service
-make kind_undeploy           # Remove K8s resources
-make kind_delete             # Delete the kind cluster
-
-# Example with explicit variables:
-make kind_deploy SERVICE_NAME=my-svc SERVICE_DIR=my_service SERVICE_PORT=8080
+make kind_create             # Create cluster
+make kind_deploy             # Build, load, apply
+make kind_status             # Pod and service status
+make kind_port_forward       # Forward localhost to service
+make kind_integration_test   # Deploy + e2e test
+make kind_undeploy           # Remove resources
+make kind_delete             # Delete cluster
 ```
 
-hello_service convenience targets:
+hello_service shortcuts:
 
 ```bash
-make hello_service_deploy             # Deploy hello-service to kind
-make hello_service_status             # Show hello-service pod/svc status
-make hello_service_port_forward       # Forward localhost:50051
-make hello_service_integration_test   # End-to-end test in kind
-make hello_service_undeploy           # Remove hello-service from kind
+make hello_service_deploy
+make hello_service_integration_test
+make hello_service_undeploy
+```
+
+## NixOS VM (kernel 6.19)
+
+NixOS configuration in `opt/nix/vm/` for a local VM running kernel 6.19 with Docker.
+
+```bash
+cd opt/nix/vm
+nix build .#nixosConfigurations.playground-vm.config.system.build.vm
+./result/bin/run-playground-vm-vm
+```
+
+Connect Docker to the VM:
+
+```bash
+export DOCKER_HOST=tcp://localhost:2375
+docker info
 ```
 
 ## CI
 
-GitHub Actions runs on every push to `main` and on pull requests. The pipeline includes:
+GitHub Actions with Nix + Cachix binary caching:
 
-1. **build** — Docker build, health check, lint and test for all projects
-2. **integration** — kind cluster deploy and end-to-end gRPC client test
-
-To run the same checks locally:
+1. **build** — lint and test all projects via `nix develop`
+2. **integration** — kind cluster deploy + gRPC e2e test
 
 ```bash
-make ci
+make ci          # Run the same checks locally
 ```
 
 ## Code Review
 
-Pull requests are automatically reviewed by Claude via the `claude-review` workflow. Mention `@claude` in a PR comment to ask follow-up questions.
+PRs are reviewed by Claude via the `claude-review` workflow. Mention `@claude` in a PR comment for follow-ups.
 
 ## Branch Protection
 
-`main` requires pull request reviews and passing CI status checks. No direct pushes.
+`main` requires PR reviews and passing CI. No direct pushes.

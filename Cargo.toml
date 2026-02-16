@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "hello_world",
+    "hello_service/hello-server",
+    "hello_service/hello-client",
+]
+resolver = "2"

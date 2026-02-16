@@ -1,8 +1,0 @@
-services:
-  dev:
-    build: .
-    volumes:
-      - .:/workspace
-    stdin_open: true
-    tty: true
-    command: sleep infinity
