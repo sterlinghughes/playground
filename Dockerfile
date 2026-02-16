@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
     sudo \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -21,8 +22,10 @@ RUN useradd -m -s /bin/bash dev \
     && echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev
 
 COPY --chown=dev:dev hello_world/ /workspace/hello_world/
+COPY --chown=dev:dev hello_service/ /workspace/hello_service/
 
 USER dev
 WORKDIR /workspace
 
 RUN cd hello_world && cargo build --release
+RUN cd hello_service && cargo build --release
