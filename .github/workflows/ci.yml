@@ -46,11 +46,16 @@ jobs:
       - name: Create kind cluster
         run: kind create cluster --name playground
 
+      - name: Build base image
+        run: docker build -t playground-base:latest -f Dockerfile.base .
+
       - name: Build hello-service image
         run: docker build -t hello-service:latest hello_service/
 
-      - name: Load image into kind
-        run: kind load docker-image hello-service:latest --name playground
+      - name: Load images into kind
+        run: |
+          kind load docker-image playground-base:latest --name playground
+          kind load docker-image hello-service:latest --name playground
 
       - name: Deploy to kind
         run: kubectl apply -k opt/k8s/base
