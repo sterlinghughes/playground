@@ -1,4 +1,4 @@
-.PHONY: build shell up down test lint ci
+.PHONY: build shell up down test lint ci hello_world
 
 build:
 	docker compose build
@@ -17,6 +17,9 @@ test:
 
 lint:
 	docker compose run --rm dev bash -c "cd hello_world && cargo clippy -- -D warnings"
+
+hello_world:
+	docker compose run --rm dev bash -c "cd hello_world && cargo run --release"
 
 ci:
 	docker compose build
