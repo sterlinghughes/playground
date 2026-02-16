@@ -97,12 +97,12 @@ endef
 export KUSTOMIZE_OVERLAY
 
 kind_deploy: kind_build kind_load
-	@mkdir -p k8s/_deploy
-	@echo "$$KUSTOMIZE_OVERLAY" > k8s/_deploy/kustomization.yaml
-	kubectl apply -k k8s/_deploy
+	@mkdir -p opt/k8s/_deploy
+	@echo "$$KUSTOMIZE_OVERLAY" > opt/k8s/_deploy/kustomization.yaml
+	kubectl apply -k opt/k8s/_deploy
 
 kind_undeploy:
-	kubectl delete -k k8s/base
+	kubectl delete -k opt/k8s/base
 
 kind_port_forward:
 	kubectl port-forward svc/$(SERVICE_NAME) $(SERVICE_PORT):$(SERVICE_PORT)
