@@ -12,7 +12,7 @@ jobs:
         run: docker compose build
 
       - name: Health check
-        run: docker compose run --rm dev bash -c "echo 'Health check: OK' && uname -a"
+        run: docker compose run --rm dev bash -c 'echo "Health check: OK" && uname -a'
 
       - name: Lint
         run: docker compose run --rm dev bash -c "cd hello_world && cargo clippy -- -D warnings"
